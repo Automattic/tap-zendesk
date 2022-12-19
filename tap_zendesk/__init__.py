@@ -117,7 +117,7 @@ def validate_dependencies(selected_stream_ids):
 def populate_class_schemas(catalog, selected_stream_names):
     for stream in catalog.streams:
         if stream.tap_stream_id in selected_stream_names:
-            LOGGER.INFO(f"Selected stream: {stream.tap_stream_id}")
+            LOGGER.info(f"Selected stream: {stream.tap_stream_id}")
             STREAMS[stream.tap_stream_id].stream = stream
 
 
