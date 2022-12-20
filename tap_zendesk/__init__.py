@@ -38,7 +38,7 @@ request = Session.request
 def request_metrics_patch(self, method, url, **kwargs):
     with singer_metrics.http_request_timer(None):
         response = request(self, method, url, **kwargs)
-        print(response.headers)
+        LOGGER.info(response.headers)
         return response
 
 Session.request = request_metrics_patch
