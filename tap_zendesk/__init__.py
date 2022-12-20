@@ -45,7 +45,8 @@ request = Session.request
 def request_metrics_patch(self, method, url, **kwargs):
     with singer_metrics.http_request_timer(None):
         response = request(self, method, url, **kwargs)
-    rate_throttling(response, self.min_remain_rate_limit)
+    print(self.headers)
+    rate_throttling(response, 600)
     return response
 
 
@@ -245,7 +246,8 @@ def get_session(config):
     session.headers["X-Zendesk-Marketplace-Name"] = config.get("marketplace_name", "")
     session.headers["X-Zendesk-Marketplace-Organization-Id"] = str(config.get("marketplace_organization_id", ""))
     session.headers["X-Zendesk-Marketplace-App-Id"] = str(config.get("marketplace_app_id", ""))
-    session.min_remain_rate_limit = int(config.get(("min_remain_rate_limit", DEFAULT_MIN_REMAIN_RATE_LIMIT)))
+    # session.headers["min_remain_rate_limit"]
+    # session.min_remain_rate_limit = int(config.get(("min_remain_rate_limit", DEFAULT_MIN_REMAIN_RATE_LIMIT)))
     return session
 
 
