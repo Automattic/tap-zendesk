@@ -2,8 +2,6 @@
 import json
 import os
 import sys
-import time
-from math import ceil
 from time import sleep
 
 import requests
@@ -57,7 +55,6 @@ def rate_throttling(response, min_remain_rate_limit):
     if 'x-rate-limit-remaining' in response.headers:
         rate_limit = int(response.headers['x-rate-limit'])
         rate_limit_remain = int(response.headers['x-rate-limit-remaining'])
-        LOGGER.info(f'x-rate-limit-remaining: {rate_limit_remain} | x-rate-limit: {rate_limit} | min_remain_rate_limit: {min_remain_rate_limit} | rate-limit-reset: {response.headers["rate-limit-reset"]}')
         if rate_limit_remain <= min_remain_rate_limit:
             seconds_to_sleep = int(response.headers['rate-limit-reset'])
             LOGGER.info(f"API rate limit exceeded (rate limit: {rate_limit}, remain: {rate_limit_remain}, "
@@ -68,7 +65,7 @@ def rate_throttling(response, min_remain_rate_limit):
         raise Exception("x-rate-limit-remaining not found in response header")
 
 
-# Session.request = request_metrics_patch
+Session.request = request_metrics_patch
 # end patch
 
 def do_discover(client):
@@ -231,7 +228,6 @@ def get_session(config):
                                      "marketplace_organization_id",
                                      "marketplace_app_id"]):
         return None
-    Session.request = request_metrics_patch
     session = requests.Session()
     # Using Zenpy's default adapter args, following the method outlined here:
     # https://github.com/facetoe/zenpy/blob/master/docs/zenpy.rst#usage
