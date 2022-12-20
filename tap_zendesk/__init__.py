@@ -36,6 +36,8 @@ API_TOKEN_CONFIG_KEYS = [
 
 DEFAULT_MIN_REMAIN_RATE_LIMIT = 0
 
+parsed_args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
+
 # patch Session.request to record HTTP request metrics
 request = Session.request
 
@@ -43,7 +45,7 @@ request = Session.request
 def request_metrics_patch(self, method, url, **kwargs):
     with singer_metrics.http_request_timer(None):
         response = request(self, method, url, **kwargs)
-    rate_throttling(response, 650)
+    rate_throttling(response, parsed_args.config.get('min_remain_rate_limit', DEFAULT_MIN_REMAIN_RATE_LIMIT))
     return response
 
 
@@ -55,6 +57,7 @@ def rate_throttling(response, min_remain_rate_limit):
     if 'x-rate-limit-remaining' in response.headers:
         rate_limit = int(response.headers['x-rate-limit'])
         rate_limit_remain = int(response.headers['x-rate-limit-remaining'])
+        LOGGER.info(f'x-rate-limit-remaining: {rate_limit_remain} | x-rate-limit: {rate_limit} | min_remain_rate_limit: {min_remain_rate_limit} | rate-limit-reset: {response.headers["rate-limit-reset"]}')
         if rate_limit_remain <= min_remain_rate_limit:
             seconds_to_sleep = int(response.headers['rate-limit-reset'])
             LOGGER.info(f"API rate limit exceeded (rate limit: {rate_limit}, remain: {rate_limit_remain}, "
@@ -235,13 +238,11 @@ def get_session(config):
     session.headers["X-Zendesk-Marketplace-Name"] = config.get("marketplace_name", "")
     session.headers["X-Zendesk-Marketplace-Organization-Id"] = str(config.get("marketplace_organization_id", ""))
     session.headers["X-Zendesk-Marketplace-App-Id"] = str(config.get("marketplace_app_id", ""))
-    # session.min_remain_rate_limit = int(config.get(("min_remain_rate_limit", DEFAULT_MIN_REMAIN_RATE_LIMIT)))
     return session
 
 
 @singer.utils.handle_top_exception(LOGGER)
 def main():
-    parsed_args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
     # OAuth has precedence
     creds = oauth_auth(parsed_args) or api_token_auth(parsed_args)
     session = get_session(parsed_args.config)
