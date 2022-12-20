@@ -45,7 +45,6 @@ request = Session.request
 def request_metrics_patch(self, method, url, **kwargs):
     with singer_metrics.http_request_timer(None):
         response = request(self, method, url, **kwargs)
-    LOGGER.info(dir(self))
     rate_throttling(response, 650)
     return response
 
@@ -61,14 +60,15 @@ def rate_throttling(response, min_remain_rate_limit):
         LOGGER.info(f'x-rate-limit-remaining: {rate_limit_remain} | x-rate-limit: {rate_limit} | min_remain_rate_limit: {min_remain_rate_limit} | rate-limit-reset: {response.headers["rate-limit-reset"]}')
         if rate_limit_remain <= min_remain_rate_limit:
             seconds_to_sleep = int(response.headers['rate-limit-reset'])
-            LOGGER.info(f"API rate limit exceeded (rate limit: {rate_limit}, remain: {rate_limit_remain}). "
+            LOGGER.info(f"API rate limit exceeded (rate limit: {rate_limit}, remain: {rate_limit_remain}, "
+                        f"min remain limit: {min_remain_rate_limit}). "
                         f"Tap will retry the data collection after {seconds_to_sleep} seconds.")
             sleep(seconds_to_sleep)
     else:
         raise Exception("x-rate-limit-remaining not found in response header")
 
 
-Session.request = request_metrics_patch
+# Session.request = request_metrics_patch
 # end patch
 
 def do_discover(client):
@@ -231,6 +231,7 @@ def get_session(config):
                                      "marketplace_organization_id",
                                      "marketplace_app_id"]):
         return None
+    Session.request = request_metrics_patch
     session = requests.Session()
     # Using Zenpy's default adapter args, following the method outlined here:
     # https://github.com/facetoe/zenpy/blob/master/docs/zenpy.rst#usage
@@ -238,7 +239,6 @@ def get_session(config):
     session.headers["X-Zendesk-Marketplace-Name"] = config.get("marketplace_name", "")
     session.headers["X-Zendesk-Marketplace-Organization-Id"] = str(config.get("marketplace_organization_id", ""))
     session.headers["X-Zendesk-Marketplace-App-Id"] = str(config.get("marketplace_app_id", ""))
-    session.headers["min_remain_rate_limit"] = str(config.get(("min_remain_rate_limit", DEFAULT_MIN_REMAIN_RATE_LIMIT)))
     # session.min_remain_rate_limit = int(config.get(("min_remain_rate_limit", DEFAULT_MIN_REMAIN_RATE_LIMIT)))
     return session
 
