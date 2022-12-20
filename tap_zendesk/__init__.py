@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 import json
-import sys, os
-from datetime import datetime, time
+import os
+import sys
+from datetime import time
 from math import ceil
 from time import sleep
 
-from zenpy import Zenpy
 import requests
+import singer
+from functools import partial
 from requests import Session
 from requests.adapters import HTTPAdapter
-import singer
 from singer import metadata, Schema, metrics as singer_metrics
+from zenpy import Zenpy
+
 from tap_zendesk import metrics as zendesk_metrics
 from tap_zendesk.discover import discover_streams
 from tap_zendesk.streams import STREAMS
@@ -34,15 +37,17 @@ API_TOKEN_CONFIG_KEYS = [
     "api_token",
 ]
 
+DEFAULT_MIN_REMAIN_RATE_LIMIT = 0
+
 # patch Session.request to record HTTP request metrics
 request = Session.request
 
 
-def request_metrics_patch(self, method, url, **kwargs):
+def request_metrics_patch(self, method, url, min_remain_rate_limit, **kwargs):
     with singer_metrics.http_request_timer(None):
         response = request(self, method, url, **kwargs)
         LOGGER.info(response.headers)
-        return rate_throttling(response)
+        return rate_throttling(response, min_remain_rate_limit)
 
 
 def calculate_seconds(epoch):
@@ -69,8 +74,6 @@ def rate_throttling(response, min_remain_rate_limit):
     else:
         raise Exception("x-rate-limit-remaining not found in response header")
 
-Session.request = request_metrics_patch
-# end patch
 
 def do_discover(client):
     LOGGER.info("Starting discover")
@@ -245,6 +248,9 @@ def get_session(config):
 @singer.utils.handle_top_exception(LOGGER)
 def main():
     parsed_args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
+    Session.request = partial(request_metrics_patch,
+                              min_remain_rate_limit=parsed_args.config.get("min_remain_rate_limit",
+                                                                           DEFAULT_MIN_REMAIN_RATE_LIMIT))
     # OAuth has precedence
     creds = oauth_auth(parsed_args) or api_token_auth(parsed_args)
     session = get_session(parsed_args.config)
