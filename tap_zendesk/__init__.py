@@ -58,7 +58,7 @@ def calculate_seconds(epoch):
     return int(ceil(epoch - current))
 
 
-def rate_throttling(response, min_remain_rate_limit):
+def rate_throttling(response, min_remain_rate_limit=DEFAULT_MIN_REMAIN_RATE_LIMIT):
     """
     For avoid rate limit issues, get the remaining time before retrying and calculate the time to sleep
     before making a new request.
@@ -252,7 +252,6 @@ def get_session(config):
 @singer.utils.handle_top_exception(LOGGER)
 def main():
     parsed_args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
-    global Session
     Session.request = partial(Session.request,
                               min_remain_rate_limit=parsed_args.config.get("min_remain_rate_limit",
                                                                            DEFAULT_MIN_REMAIN_RATE_LIMIT))
