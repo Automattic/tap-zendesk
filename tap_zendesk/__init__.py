@@ -75,6 +75,10 @@ def rate_throttling(response, min_remain_rate_limit):
         raise Exception("x-rate-limit-remaining not found in response header")
 
 
+Session.request = request_metrics_patch
+# end patch
+
+
 def do_discover(client):
     LOGGER.info("Starting discover")
     catalog = {"streams": discover_streams(client)}
@@ -248,7 +252,8 @@ def get_session(config):
 @singer.utils.handle_top_exception(LOGGER)
 def main():
     parsed_args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
-    Session.request = partial(request_metrics_patch,
+    global Session
+    Session.request = partial(Session.request,
                               min_remain_rate_limit=parsed_args.config.get("min_remain_rate_limit",
                                                                            DEFAULT_MIN_REMAIN_RATE_LIMIT))
     # OAuth has precedence
