@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 import json
 import sys, os
-from datetime import datetime
+from datetime import datetime, time
+from math import ceil
+from time import sleep
+
 from zenpy import Zenpy
 import requests
 from requests import Session
@@ -39,7 +42,32 @@ def request_metrics_patch(self, method, url, **kwargs):
     with singer_metrics.http_request_timer(None):
         response = request(self, method, url, **kwargs)
         LOGGER.info(response.headers)
-        return response
+        return rate_throttling(response)
+
+
+def calculate_seconds(epoch):
+    """
+    Calculate the seconds to sleep before making a new request.
+    """
+    current = time()
+    return int(ceil(epoch - current))
+
+
+def rate_throttling(response, min_remain_rate_limit):
+    """
+    For avoid rate limit issues, get the remaining time before retrying and calculate the time to sleep
+    before making a new request.
+    """
+    if 'x-rate-limit-remaining' in response.headers:
+        rate_limit = int(response.headers['x-rate-limit'])
+        rate_limit_remain = int(response.headers['x-rate-limit-remaining'])
+        if rate_limit_remain <= min_remain_rate_limit:
+            seconds_to_sleep = calculate_seconds(int(response.headers['rate-limit-reset']))
+            LOGGER.info(f"API rate limit exceeded (rate limit: {rate_limit}, remain: {rate_limit_remain}). "
+                        f"Tap will retry the data collection after {seconds_to_sleep} seconds.")
+            sleep(seconds_to_sleep)
+    else:
+        raise Exception("x-rate-limit-remaining not found in response header")
 
 Session.request = request_metrics_patch
 # end patch
