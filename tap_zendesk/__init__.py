@@ -37,7 +37,9 @@ request = Session.request
 
 def request_metrics_patch(self, method, url, **kwargs):
     with singer_metrics.http_request_timer(None):
-        return request(self, method, url, **kwargs)
+        response = request(self, method, url, **kwargs)
+        print(response.headers)
+        return response
 
 Session.request = request_metrics_patch
 # end patch
@@ -117,7 +119,6 @@ def validate_dependencies(selected_stream_ids):
 def populate_class_schemas(catalog, selected_stream_names):
     for stream in catalog.streams:
         if stream.tap_stream_id in selected_stream_names:
-            LOGGER.info(f"Selected stream: {stream.tap_stream_id}")
             STREAMS[stream.tap_stream_id].stream = stream
 
 
