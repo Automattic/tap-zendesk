@@ -45,7 +45,7 @@ request = Session.request
 def request_metrics_patch(self, method, url, **kwargs):
     with singer_metrics.http_request_timer(None):
         response = request(self, method, url, **kwargs)
-    print(self.headers)
+    # LOGGER.info(self.headers)
     rate_throttling(response, 600)
     return response
 
