@@ -43,7 +43,7 @@ DEFAULT_MIN_REMAIN_RATE_LIMIT = 0
 request = Session.request
 
 
-def request_metrics_patch(self, method, url, min_remain_rate_limit, **kwargs):
+def request_metrics_patch(self, method, url, min_remain_rate_limit=DEFAULT_MIN_REMAIN_RATE_LIMIT, **kwargs):
     with singer_metrics.http_request_timer(None):
         response = request(self, method, url, **kwargs)
         LOGGER.info(response.headers)
@@ -58,7 +58,7 @@ def calculate_seconds(epoch):
     return int(ceil(epoch - current))
 
 
-def rate_throttling(response, min_remain_rate_limit=DEFAULT_MIN_REMAIN_RATE_LIMIT):
+def rate_throttling(response, min_remain_rate_limit):
     """
     For avoid rate limit issues, get the remaining time before retrying and calculate the time to sleep
     before making a new request.
@@ -246,15 +246,15 @@ def get_session(config):
     session.headers["X-Zendesk-Marketplace-Name"] = config.get("marketplace_name", "")
     session.headers["X-Zendesk-Marketplace-Organization-Id"] = str(config.get("marketplace_organization_id", ""))
     session.headers["X-Zendesk-Marketplace-App-Id"] = str(config.get("marketplace_app_id", ""))
+    session.request = partial(session.request,
+                              min_remain_rate_limit=config.get("min_remain_rate_limit",
+                                                               DEFAULT_MIN_REMAIN_RATE_LIMIT))
     return session
 
 
 @singer.utils.handle_top_exception(LOGGER)
 def main():
     parsed_args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
-    Session.request = partial(Session.request,
-                              min_remain_rate_limit=parsed_args.config.get("min_remain_rate_limit",
-                                                                           DEFAULT_MIN_REMAIN_RATE_LIMIT))
     # OAuth has precedence
     creds = oauth_auth(parsed_args) or api_token_auth(parsed_args)
     session = get_session(parsed_args.config)
