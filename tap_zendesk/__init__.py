@@ -46,8 +46,8 @@ request = Session.request
 def request_metrics_patch(self, method, url, min_remain_rate_limit=DEFAULT_MIN_REMAIN_RATE_LIMIT, **kwargs):
     with singer_metrics.http_request_timer(None):
         response = request(self, method, url, **kwargs)
-        LOGGER.info(response.headers)
-        return rate_throttling(response, min_remain_rate_limit)
+        rate_throttling(response, min_remain_rate_limit)
+        return response
 
 
 def calculate_seconds(epoch):
