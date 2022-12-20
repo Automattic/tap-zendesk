@@ -51,8 +51,9 @@ def request_metrics_patch(self, method, url, **kwargs):
 
 def rate_throttling(response, min_remain_rate_limit):
     """
-    For avoid rate limit issues, get the remaining time before retrying and calculate the time to sleep
-    before making a new request.
+    To avoid rate limit issues (with concurrent applications), get the remaining time before retrying and
+    calculate the time to sleep before making a new request if the minimum request rate limit remain is below the one
+    defined.
     """
     if 'x-rate-limit-remaining' in response.headers:
         rate_limit = int(response.headers['x-rate-limit'])
