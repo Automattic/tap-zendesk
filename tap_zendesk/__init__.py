@@ -50,14 +50,6 @@ def request_metrics_patch(self, method, url, **kwargs):
     return response
 
 
-def calculate_seconds(epoch):
-    """
-    Calculate the seconds to sleep before making a new request.
-    """
-    current = time.time()
-    return int(ceil(epoch - current))
-
-
 def rate_throttling(response, min_remain_rate_limit):
     """
     For avoid rate limit issues, get the remaining time before retrying and calculate the time to sleep
@@ -68,7 +60,7 @@ def rate_throttling(response, min_remain_rate_limit):
         rate_limit_remain = int(response.headers['x-rate-limit-remaining'])
         LOGGER.info(f'x-rate-limit-remaining: {rate_limit_remain} | x-rate-limit: {rate_limit} | min_remain_rate_limit: {min_remain_rate_limit} | rate-limit-reset: {response.headers["rate-limit-reset"]}')
         if rate_limit_remain <= min_remain_rate_limit:
-            seconds_to_sleep = calculate_seconds(int(response.headers['rate-limit-reset']))
+            seconds_to_sleep = int(response.headers['rate-limit-reset'])
             LOGGER.info(f"API rate limit exceeded (rate limit: {rate_limit}, remain: {rate_limit_remain}). "
                         f"Tap will retry the data collection after {seconds_to_sleep} seconds.")
             sleep(seconds_to_sleep)
@@ -246,7 +238,7 @@ def get_session(config):
     session.headers["X-Zendesk-Marketplace-Name"] = config.get("marketplace_name", "")
     session.headers["X-Zendesk-Marketplace-Organization-Id"] = str(config.get("marketplace_organization_id", ""))
     session.headers["X-Zendesk-Marketplace-App-Id"] = str(config.get("marketplace_app_id", ""))
-    # session.headers["min_remain_rate_limit"]
+    session.headers["min_remain_rate_limit"] = str(config.get(("min_remain_rate_limit", DEFAULT_MIN_REMAIN_RATE_LIMIT)))
     # session.min_remain_rate_limit = int(config.get(("min_remain_rate_limit", DEFAULT_MIN_REMAIN_RATE_LIMIT)))
     return session
 
