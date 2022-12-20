@@ -252,7 +252,7 @@ def get_session(config):
 @singer.utils.handle_top_exception(LOGGER)
 def main():
     parsed_args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
-    os.environ["TAP_ZENDESK_API_TOKEN"] = str(parsed_args.config.get(("min_remain_rate_limit",
+    os.environ["MIN_REMAIN_RATE_LIMIT"] = str(parsed_args.config.get(("min_remain_rate_limit",
                                                                       DEFAULT_MIN_REMAIN_RATE_LIMIT)))
     # OAuth has precedence
     creds = oauth_auth(parsed_args) or api_token_auth(parsed_args)
