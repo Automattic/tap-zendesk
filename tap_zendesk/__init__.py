@@ -43,9 +43,9 @@ class ZendeskSession(Session):
         self.min_remain_rate_limit = min_remain_rate_limit
         super().__init__()
 
-    def request(self, url, **kwargs):
+    def request(self, method, url, **kwargs):
         with singer_metrics.http_request_timer(url):
-            response = super().request(url=url, **kwargs)
+            response = super().request(method, url, **kwargs)
         self.rate_throttling(response)
         return response
 
@@ -58,7 +58,7 @@ class ZendeskSession(Session):
         if 'x-rate-limit-remaining' in response.headers:
             rate_limit = int(response.headers['x-rate-limit'])
             rate_limit_remain = int(response.headers['x-rate-limit-remaining'])
-            LOGGER.info(f'x-rate-limit-remaining: {rate_limit_remain} | x-rate-limit: {rate_limit} | min_remain_rate_limit: {min_remain_rate_limit} | rate-limit-reset: {response.headers["rate-limit-reset"]}')
+            LOGGER.info(f'x-rate-limit-remaining: {rate_limit_remain} | x-rate-limit: {rate_limit} | min_remain_rate_limit: {self.min_remain_rate_limit} | rate-limit-reset: {response.headers["rate-limit-reset"]}')
             if rate_limit_remain <= self.min_remain_rate_limit:
                 seconds_to_sleep = int(response.headers['rate-limit-reset'])
                 LOGGER.info(f"API rate limit exceeded (rate limit: {rate_limit}, remain: {rate_limit_remain}, "
@@ -67,7 +67,6 @@ class ZendeskSession(Session):
                 sleep(seconds_to_sleep)
         else:
             raise Exception("x-rate-limit-remaining not found in response header")
-        Exception("x-rate-limit-remaining not found in response header")
 
 
 def do_discover(client):
