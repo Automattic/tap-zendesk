@@ -40,6 +40,7 @@ parsed_args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
 
 class ZendeskSession(Session):
     def __init__(self, min_remain_rate_limit):
+        self.logger = singer.get_logger()
         self.min_remain_rate_limit = min_remain_rate_limit
         super().__init__()
 
@@ -58,10 +59,10 @@ class ZendeskSession(Session):
         if 'x-rate-limit-remaining' in response.headers:
             rate_limit = int(response.headers['x-rate-limit'])
             rate_limit_remain = int(response.headers['x-rate-limit-remaining'])
-            LOGGER.info(f'x-rate-limit-remaining: {rate_limit_remain} | x-rate-limit: {rate_limit} | min_remain_rate_limit: {self.min_remain_rate_limit} | rate-limit-reset: {response.headers["rate-limit-reset"]}')
+            self.logger.info(f'x-rate-limit-remaining: {rate_limit_remain} | x-rate-limit: {rate_limit} | min_remain_rate_limit: {self.min_remain_rate_limit} | rate-limit-reset: {response.headers["rate-limit-reset"]}')
             if rate_limit_remain <= self.min_remain_rate_limit:
                 seconds_to_sleep = int(response.headers['rate-limit-reset'])
-                LOGGER.info(f"API rate limit exceeded (rate limit: {rate_limit}, remain: {rate_limit_remain}, "
+                self.logger.info(f"API rate limit exceeded (rate limit: {rate_limit}, remain: {rate_limit_remain}, "
                             f"min remain limit: {self.min_remain_rate_limit}). "
                             f"Tap will retry the data collection after {seconds_to_sleep} seconds.")
                 sleep(seconds_to_sleep)
