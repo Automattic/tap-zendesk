@@ -4,7 +4,6 @@ import sys
 from json import dump
 from time import sleep
 
-import requests
 import singer
 from requests import Session
 from requests.adapters import HTTPAdapter
@@ -40,7 +39,8 @@ parsed_args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
 
 
 class ZendeskSession(Session):
-    def __init__(self, min_remain_rate_limit):
+    def __init__(self, min_remain_rate_limit, logger):
+        self.logger = logger
         self.min_remain_rate_limit = min_remain_rate_limit
         super().__init__()
 
@@ -59,6 +59,7 @@ class ZendeskSession(Session):
         if 'x-rate-limit-remaining' in response.headers:
             rate_limit = int(response.headers['x-rate-limit'])
             rate_limit_remain = int(response.headers['x-rate-limit-remaining'])
+            self.logger.info(f'x-rate-limit-remaining: {rate_limit_remain} | x-rate-limit: {rate_limit} | min_remain_rate_limit: {min_remain_rate_limit} | rate-limit-reset: {response.headers["rate-limit-reset"]}')
             if rate_limit_remain <= self.min_remain_rate_limit:
                 seconds_to_sleep = int(response.headers['rate-limit-reset'])
                 LOGGER.info(f"API rate limit exceeded (rate limit: {rate_limit}, remain: {rate_limit_remain}, "
@@ -229,7 +230,7 @@ def get_session(config):
                                      "marketplace_organization_id",
                                      "marketplace_app_id"]):
         return None
-    session = ZendeskSession(config.get('min_remain_rate_limit', DEFAULT_MIN_REMAIN_RATE_LIMIT))
+    session = ZendeskSession(config.get('min_remain_rate_limit', DEFAULT_MIN_REMAIN_RATE_LIMIT), LOGGER)
     # Using Zenpy's default adapter args, following the method outlined here:
     # https://github.com/facetoe/zenpy/blob/master/docs/zenpy.rst#usage
     session.mount("https://", HTTPAdapter(**Zenpy.http_adapter_kwargs()))
