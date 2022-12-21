@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
+import json
 import os
 import sys
-from json import dump
 from time import sleep
 
+import requests
 import singer
 from requests import Session
 from requests.adapters import HTTPAdapter
@@ -37,43 +38,43 @@ DEFAULT_MIN_REMAIN_RATE_LIMIT = 0
 
 parsed_args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
 
+# patch Session.request to record HTTP request metrics
+request = Session.request
 
-class ZendeskSession(Session):
-    def __init__(self, min_remain_rate_limit):
-        self.logger = singer.get_logger()
-        self.min_remain_rate_limit = min_remain_rate_limit
-        super().__init__()
 
-    def request(self, method, url, **kwargs):
-        with singer_metrics.http_request_timer(url):
-            response = super().request(method, url, **kwargs)
-        self.rate_throttling(response)
-        return response
+def request_metrics_patch(self, method, url, **kwargs):
+    with singer_metrics.http_request_timer(url):
+        response = request(self, method, url, **kwargs)
+    rate_throttling(response, parsed_args.config.get('min_remain_rate_limit', DEFAULT_MIN_REMAIN_RATE_LIMIT))
+    return response
 
-    def rate_throttling(self, response):
-        """
-        To avoid rate limit issues (with concurrent applications), get the remaining time before retrying and
-        calculate the time to sleep before making a new request if the minimum request rate limit remain is below the one
-        defined.
-        """
-        if 'x-rate-limit-remaining' in response.headers:
-            rate_limit = int(response.headers['x-rate-limit'])
-            rate_limit_remain = int(response.headers['x-rate-limit-remaining'])
-            self.logger.info(f'x-rate-limit-remaining: {rate_limit_remain} | x-rate-limit: {rate_limit} | min_remain_rate_limit: {self.min_remain_rate_limit} | rate-limit-reset: {response.headers["rate-limit-reset"]}')
-            if rate_limit_remain <= self.min_remain_rate_limit:
-                seconds_to_sleep = int(response.headers['rate-limit-reset'])
-                self.logger.info(f"API rate limit exceeded (rate limit: {rate_limit}, remain: {rate_limit_remain}, "
-                            f"min remain limit: {self.min_remain_rate_limit}). "
-                            f"Tap will retry the data collection after {seconds_to_sleep} seconds.")
-                sleep(seconds_to_sleep)
-        else:
-            raise Exception("x-rate-limit-remaining not found in response header")
 
+def rate_throttling(response, min_remain_rate_limit):
+    """
+    To avoid rate limit issues (with concurrent applications), get the remaining time before retrying and
+    calculate the time to sleep before making a new request if the minimum request rate limit remain is below the one
+    defined.
+    """
+    if 'x-rate-limit-remaining' in response.headers:
+        rate_limit = int(response.headers['x-rate-limit'])
+        rate_limit_remain = int(response.headers['x-rate-limit-remaining'])
+        if rate_limit_remain <= min_remain_rate_limit:
+            seconds_to_sleep = int(response.headers['rate-limit-reset'])
+            LOGGER.info(f"API rate limit exceeded (rate limit: {rate_limit}, remain: {rate_limit_remain}, "
+                        f"min remain limit: {min_remain_rate_limit}). "
+                        f"Tap will retry the data collection after {seconds_to_sleep} seconds.")
+            sleep(seconds_to_sleep)
+    else:
+        raise Exception("x-rate-limit-remaining not found in response header")
+
+
+Session.request = request_metrics_patch
+# end patch
 
 def do_discover(client):
     LOGGER.info("Starting discover")
     catalog = {"streams": discover_streams(client)}
-    dump(catalog, sys.stdout, indent=2)
+    json.dump(catalog, sys.stdout, indent=2)
     LOGGER.info("Finished discover")
 
 
@@ -230,7 +231,7 @@ def get_session(config):
                                      "marketplace_organization_id",
                                      "marketplace_app_id"]):
         return None
-    session = ZendeskSession(config.get('min_remain_rate_limit', DEFAULT_MIN_REMAIN_RATE_LIMIT))
+    session = requests.Session()
     # Using Zenpy's default adapter args, following the method outlined here:
     # https://github.com/facetoe/zenpy/blob/master/docs/zenpy.rst#usage
     session.mount("https://", HTTPAdapter(**Zenpy.http_adapter_kwargs()))
