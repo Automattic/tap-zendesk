@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 import json
-import sys, os
-from datetime import datetime
-from zenpy import Zenpy
+import os
+import sys
+from time import sleep
+
 import requests
+import singer
 from requests import Session
 from requests.adapters import HTTPAdapter
-import singer
 from singer import metadata, Schema, metrics as singer_metrics
+from zenpy import Zenpy
+
 from tap_zendesk import metrics as zendesk_metrics
 from tap_zendesk.discover import discover_streams
 from tap_zendesk.streams import STREAMS
@@ -31,13 +34,39 @@ API_TOKEN_CONFIG_KEYS = [
     "api_token",
 ]
 
+DEFAULT_MIN_REMAIN_RATE_LIMIT = 0
+
+parsed_args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
+
 # patch Session.request to record HTTP request metrics
 request = Session.request
 
 
 def request_metrics_patch(self, method, url, **kwargs):
-    with singer_metrics.http_request_timer(None):
-        return request(self, method, url, **kwargs)
+    with singer_metrics.http_request_timer(url):
+        response = request(self, method, url, **kwargs)
+    rate_throttling(response, parsed_args.config.get('min_remain_rate_limit', DEFAULT_MIN_REMAIN_RATE_LIMIT))
+    return response
+
+
+def rate_throttling(response, min_remain_rate_limit):
+    """
+    To avoid rate limit issues (with concurrent applications), get the remaining time before retrying and
+    calculate the time to sleep before making a new request if the minimum request rate limit remain is below the one
+    defined.
+    """
+    if 'x-rate-limit-remaining' in response.headers:
+        rate_limit = int(response.headers['x-rate-limit'])
+        rate_limit_remain = int(response.headers['x-rate-limit-remaining'])
+        if rate_limit_remain <= min_remain_rate_limit:
+            seconds_to_sleep = int(response.headers['rate-limit-reset'])
+            LOGGER.info(f"API rate limit exceeded (rate limit: {rate_limit}, remain: {rate_limit_remain}, "
+                        f"min remain limit: {min_remain_rate_limit}). "
+                        f"Tap will retry the data collection after {seconds_to_sleep} seconds.")
+            sleep(seconds_to_sleep)
+    else:
+        raise Exception("x-rate-limit-remaining not found in response header")
+
 
 Session.request = request_metrics_patch
 # end patch
@@ -214,7 +243,6 @@ def get_session(config):
 
 @singer.utils.handle_top_exception(LOGGER)
 def main():
-    parsed_args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
     # OAuth has precedence
     creds = oauth_auth(parsed_args) or api_token_auth(parsed_args)
     session = get_session(parsed_args.config)
