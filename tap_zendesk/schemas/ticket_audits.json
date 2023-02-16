@@ -505,7 +505,11 @@
         "object"
       ],
       "properties": {
-        "custom": {},
+        "custom": {
+          "type": [
+            "null"
+          ]
+        },
         "trusted": {
           "type": [
             "null",
