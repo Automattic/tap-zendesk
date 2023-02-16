@@ -507,7 +507,8 @@
       "properties": {
         "custom": {
           "type": [
-            "null"
+            "null",
+            "string"
           ]
         },
         "trusted": {
