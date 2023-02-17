@@ -1,4 +1,4 @@
-# twilio-tap-zendesk
+# tap-zendesk
 Tap for Zendesk
 
 ## Installation
