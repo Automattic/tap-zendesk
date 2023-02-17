@@ -248,6 +248,8 @@ def main():
     session = get_session(parsed_args.config)
     client = Zenpy(session=session, **creds)
 
+    LOGGER.info(f"min_remain_rate_limit: {parsed_args.config.get('min_remain_rate_limit', DEFAULT_MIN_REMAIN_RATE_LIMIT)}")
+
     if not client:
         LOGGER.error("""No suitable authentication keys provided.""")
 
