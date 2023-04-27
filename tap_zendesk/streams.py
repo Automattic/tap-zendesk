@@ -243,8 +243,8 @@ class Tickets(Stream):
     def sync(self, state):
         bookmark = self.get_bookmark(state)
         sideload_objects = get_sideload_objects(self.stream)
-        tickets = self.client.tickets.incremental.cursor_start(start_time=bookmark, include=sideload_objects,
-                                                               per_page=500)
+        tickets = self.client.tickets.incremental(start_time=bookmark, include=sideload_objects,
+                                                  paginate_by_time=False, per_page=500)
         audits_stream = TicketAudits(self.client)
         metrics_stream = TicketMetrics(self.client)
         comments_stream = TicketComments(self.client)
