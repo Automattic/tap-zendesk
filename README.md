@@ -35,7 +35,8 @@ For a simplified, but less granular setup, you can use the API Token authenticat
   "email": "user@domain.com",
   "api_token": "THISISAVERYLONGTOKEN",
   "subdomain": "acme",
-  "start_date": "2000-01-01T00:00:00Z"
+  "start_date": "2000-01-01T00:00:00Z",
+  "ticket_paginate_by_time": false
 }
 ```
 
@@ -43,6 +44,10 @@ An optional `end_date` field can be added to the `config.json`
 This functionality has been added to ease the backfill procedure for a limited time duration for Zendesk
 
 If passed, data would be loaded for `date >= start_date and date < end_date`
+
+The `ticket_paginate_by_time` field is optional and defaults to `true` (time-based approach). 
+If set to `false`, the tap will paginate tickets by cursor-based instead of time-based. 
+This is useful if you are getting timeout on server side because too many updates in the same time range.
 
 ### Sideloading for tickets
 
