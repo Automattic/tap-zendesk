@@ -65,8 +65,7 @@ def rate_throttling(response, min_remain_rate_limit):
                         f"Tap will retry the data collection after {seconds_to_sleep} seconds.")
             sleep(seconds_to_sleep)
     else:
-        LOGGER.warn("x-rate-limit-remaining not found in response header. Sleeping for 30 seconds.")
-        sleep(30)
+        raise Exception("x-rate-limit-remaining not found in response header")
 
 
 Session.request = request_metrics_patch
