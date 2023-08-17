@@ -103,3 +103,4 @@ config.json
 .autoenv.zsh
 
 *~
+/catalog.json
