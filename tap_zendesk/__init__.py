@@ -55,18 +55,18 @@ def rate_throttling(response, min_remain_rate_limit):
     calculate the time to sleep before making a new request if the minimum request rate limit remain is below the one
     defined.
     """
-    LOGGER.info(f'Response headers: {response.headers}')
-    if 'x-rate-limit-remaining' in response.headers:
-        rate_limit = int(response.headers['x-rate-limit'])
-        rate_limit_remain = int(response.headers['x-rate-limit-remaining'])
+    rate_limit_remain = response.headers.get('x-rate-limit-remaining', response.headers.get('ratelimit-remaining'))
+    if rate_limit_remain:
+        rate_limit_remain = int(rate_limit_remain)
+        rate_limit = int(response.headers.get('x-rate-limit', response.headers.get('ratelimit-limit')))
         if rate_limit_remain <= min_remain_rate_limit:
-            seconds_to_sleep = int(response.headers.get('rate-limit-reset', 60))
+            seconds_to_sleep = int(response.headers.get('rate-limit-reset', response.headers.get('ratelimit-reset', 60)))
             LOGGER.info(f"API rate limit exceeded (rate limit: {rate_limit}, remain: {rate_limit_remain}, "
                         f"min remain limit: {min_remain_rate_limit}). "
                         f"Tap will retry the data collection after {seconds_to_sleep} seconds.")
             sleep(seconds_to_sleep)
-    # else:
-    #     raise Exception("x-rate-limit-remaining not found in response header")
+    else:
+        raise Exception("rate-limit-remaining not found in response header")
 
 
 Session.request = request_metrics_patch
