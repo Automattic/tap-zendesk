@@ -59,7 +59,7 @@ def rate_throttling(response, min_remain_rate_limit):
         rate_limit = int(response.headers['x-rate-limit'])
         rate_limit_remain = int(response.headers['x-rate-limit-remaining'])
         if rate_limit_remain <= min_remain_rate_limit:
-            LOGGER.info(response.headers)
+            LOGGER.info(f'Response headers: {response.headers}')
             seconds_to_sleep = int(response.headers.get('rate-limit-reset', 60))
             LOGGER.info(f"API rate limit exceeded (rate limit: {rate_limit}, remain: {rate_limit_remain}, "
                         f"min remain limit: {min_remain_rate_limit}). "
