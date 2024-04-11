@@ -1,7 +1,6 @@
 # Local Meltano Test Project
 .meltano/
 output/
-meltano.yml
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
