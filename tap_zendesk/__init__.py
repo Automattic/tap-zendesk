@@ -96,6 +96,7 @@ def get_selected_streams(catalog):
 SUB_STREAMS = {
     'tickets': ['ticket_audits', 'ticket_metrics', 'ticket_comments']
 }
+SUB_STREAMS_SET = {substream for streams in SUB_STREAMS.values() for substream in streams}
 
 # only side loading objects that are returned as a child object and not a separate array
 SIDELOAD_OBJECTS = {
@@ -169,8 +170,8 @@ def do_sync(client, catalog, state, config):
         if sideload_objects:
             stream_schema = get_side_load_schemas(sideload_objects, stream)
             stream.schema = Schema.from_dict(stream_schema)
-
-        singer.write_schema(stream_name, stream.schema.to_dict(), key_properties)
+        if stream_name not in SUB_STREAMS_SET:
+            singer.write_schema(stream_name, stream.schema.to_dict(), key_properties)
 
         sub_stream_names = SUB_STREAMS.get(stream_name)
         if sub_stream_names:
