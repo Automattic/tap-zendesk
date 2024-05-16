@@ -93,6 +93,31 @@ def get_selected_streams(catalog):
     return selected_stream_names
 
 
+def get_selected_properties(mdata):
+    selected_properties = set()
+    for key, value in mdata.items():
+        if len(key) >= 2 and value.get('selected'):
+            selected_properties.add('.'.join(key[1::2]))
+
+    selected_properties.update(mdata.get((), {}).get('table-key-properties', []))
+    selected_properties.update(mdata.get((), {}).get('valid-replication-keys', []))
+
+    return selected_properties
+
+
+def filter_schema_properties(schema, selected_properties, parent_keys=None):
+    parent_keys = parent_keys or []
+    for k, v in list(schema['properties'].items()):
+        key = '.'.join(parent_keys + [k])
+        if key not in selected_properties:
+            schema['properties'].pop(k)
+            LOGGER.info("Filtering out property: %s", key)
+        else:
+            if 'properties' in v:
+                schema['properties'][k] = filter_schema_properties(v, selected_properties, parent_keys + [k])
+    return schema
+
+
 SUB_STREAMS = {
     'tickets': ['ticket_audits', 'ticket_metrics', 'ticket_comments']
 }
@@ -171,7 +196,8 @@ def do_sync(client, catalog, state, config):
             stream_schema = get_side_load_schemas(sideload_objects, stream)
             stream.schema = Schema.from_dict(stream_schema)
         if stream_name not in SUB_STREAMS_SET:
-            singer.write_schema(stream_name, stream.schema.to_dict(), key_properties)
+            singer.write_schema(stream_name,
+                                filter_schema_properties(stream.schema.to_dict(), get_selected_properties(mdata)), key_properties)
 
         sub_stream_names = SUB_STREAMS.get(stream_name)
         if sub_stream_names:
@@ -185,7 +211,8 @@ def do_sync(client, catalog, state, config):
                 if sideload_objects:
                     sub_stream_schema = get_side_load_schemas(sideload_objects, sub_stream)
                     sub_stream.schema = Schema.from_dict(sub_stream_schema)
-                singer.write_schema(sub_stream.tap_stream_id, sub_stream.schema.to_dict(), sub_key_properties)
+                singer.write_schema(sub_stream.tap_stream_id,
+                                    filter_schema_properties(sub_stream.schema.to_dict(), get_selected_properties(sub_mdata)), sub_key_properties)
 
         # parent stream will sync sub stream
         if stream_name in all_sub_stream_names:
